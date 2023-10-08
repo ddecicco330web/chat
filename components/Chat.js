@@ -1,4 +1,10 @@
-import { View, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Platform,
+  KeyboardAvoidingView,
+  Alert
+} from 'react-native';
 import { useEffect, useState } from 'react';
 import {
   GiftedChat,
@@ -6,42 +12,54 @@ import {
   SystemMessage,
   Day
 } from 'react-native-gifted-chat';
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc
+} from 'firebase/firestore';
 
-const Chat = ({ route, navigation }) => {
+const Chat = ({ route, navigation, db }) => {
   const [messages, setMessages] = useState([]);
 
-  const { name, bgColor } = route.params;
+  const { name, bgColor, userID } = route.params;
 
   useEffect(() => {
     navigation.setOptions({ title: name });
 
-    {
-      /*Send system message saying user has entered. */
-    }
-    setMessages([
-      {
-        _id: 1,
-        text: 'Hello',
-        createdAt: new Date(),
-        user: {
-          _id: 2,
-          name: 'React Native',
-          avatar: 'https://placeimg.com/140/140/any'
-        }
-      },
-      {
-        _id: 2,
-        text: `${name} entered the chat.`,
-        createdAt: new Date(),
-        system: true
+    const q = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
+
+    const unSubMessages = onSnapshot(q, (documentsSnapshot) => {
+      let newMessages = [];
+
+      documentsSnapshot.forEach((doc) => {
+        const date = new Date(doc.data().createdAt.toDate());
+        newMessages.push({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: date
+        });
+      });
+      setMessages(newMessages);
+    });
+
+    // Clean up
+    return () => {
+      if (unSubMessages) {
+        unSubMessages();
       }
-    ]);
+    };
   }, []);
 
   const onSend = (newMessages) => {
-    setMessages((previousMessages) =>
-      GiftedChat.append(previousMessages, newMessages)
-    );
+    const newMessageRef = addDoc(collection(db, 'messages'), newMessages[0]);
+
+    if (newMessageRef) {
+      setMessages([newMessages[0], ...messages]);
+    } else {
+      Alert.alert('Unable to send message.');
+    }
   };
 
   const renderBubble = (props) => {
@@ -72,7 +90,7 @@ const Chat = ({ route, navigation }) => {
         renderSystemMessage={renderSystemMessage}
         renderDay={renderDay}
         onSend={(messages) => onSend(messages)}
-        user={{ _id: 1, name }}
+        user={{ _id: userID, name: name }}
       ></GiftedChat>
       {Platform.OS === 'android' ? (
         <KeyboardAvoidingView behavior="height" />

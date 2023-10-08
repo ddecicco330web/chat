@@ -4,15 +4,33 @@ import {
   View,
   StyleSheet,
   Text,
-  ImageBackground
+  ImageBackground,
+  Alert
 } from 'react-native';
 import { useState } from 'react';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const Start = ({ navigation }) => {
   const [name, setName] = useState('');
   const [bgColor, setBGColor] = useState('#090C08');
 
   const bgColors = ['#090C08', '#474056', '#8A95A5', '#B9C6AE'];
+
+  const auth = getAuth();
+
+  const signInUser = () => {
+    signInAnonymously(auth)
+      .then((result) => {
+        navigation.navigate('Chat', {
+          userID: result.user.uid,
+          name: name,
+          bgColor: bgColor
+        });
+      })
+      .catch((error) => {
+        Alert.alert('Unable to sign in, try later again.');
+      });
+  };
 
   return (
     <View style={styles.container}>
@@ -124,15 +142,8 @@ const Start = ({ navigation }) => {
 
           {/*Start Button*/}
           <View style={styles.section}>
-            <TouchableOpacity style={styles.customButton}>
-              <Text
-                style={styles.customText}
-                onPress={() =>
-                  navigation.navigate('Chat', { name: name, bgColor: bgColor })
-                }
-              >
-                Start Chatting
-              </Text>
+            <TouchableOpacity style={styles.customButton} onPress={signInUser}>
+              <Text style={styles.customText}>Start Chatting</Text>
             </TouchableOpacity>
           </View>
         </View>
