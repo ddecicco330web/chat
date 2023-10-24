@@ -2,9 +2,7 @@ import Start from './components/Start';
 import Chat from './components/Chat';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initializeApp } from 'firebase/app';
 import {
   getFirestore,
   disableNetwork,
@@ -13,6 +11,7 @@ import {
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useEffect } from 'react';
 import { Alert, LogBox } from 'react-native';
+import { getStorage } from 'firebase/storage';
 
 const Stack = createNativeStackNavigator();
 
@@ -42,6 +41,8 @@ export default function App() {
 
   const db = getFirestore(app);
 
+  const storage = getStorage(app);
+
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Start">
@@ -51,6 +52,7 @@ export default function App() {
             <Chat
               isConnected={connectionStatus.isConnected}
               db={db}
+              storage={storage}
               {...props}
             />
           )}
