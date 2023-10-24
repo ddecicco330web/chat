@@ -13,6 +13,7 @@ import {
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useEffect } from 'react';
 import { Alert, LogBox } from 'react-native';
+import { getStorage } from 'firebase/storage';
 
 const Stack = createNativeStackNavigator();
 
@@ -42,6 +43,8 @@ export default function App() {
 
   const db = getFirestore(app);
 
+  const storage = getStorage(app);
+
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Start">
@@ -51,6 +54,7 @@ export default function App() {
             <Chat
               isConnected={connectionStatus.isConnected}
               db={db}
+              storage={storage}
               {...props}
             />
           )}
