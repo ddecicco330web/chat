@@ -1,8 +1,10 @@
-import { TouchableNativeFeedback, StyleSheet, Text, View } from 'react-native';
+import { TouchableOpacity, StyleSheet, Text, View, Alert } from 'react-native';
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Audio } from 'expo-av';
+import { useEffect } from 'react';
 
 const CustomActions = ({
   wrapperStyle,
@@ -11,12 +13,24 @@ const CustomActions = ({
   storage,
   userID
 }) => {
+  useEffect(() => {
+    return () => {
+      if (recordingObject) recordingObject.stopAndUnloadAsync();
+    };
+  }, []);
   const actionSheet = useActionSheet();
+
+  // use for when user records audio
+  let recordingObject = null;
+
+  /////////////// onActionPress ///////////////
+  // displays options for user to choose from
   const onActionPress = () => {
     const options = [
       'Choose From Library',
       'Take Picture',
       'Send Location',
+      'Record a Sound',
       'Cancel'
     ];
     const cancelButtonIndex = options.length - 1;
@@ -36,12 +50,17 @@ const CustomActions = ({
             return;
           case 2:
             getLocation();
+            return;
+          case 3:
+            startRecording();
+            return;
           default:
         }
       }
     );
   };
 
+  /////////////// getLocation ///////////////
   const getLocation = async () => {
     let permissions = await Location.requestForegroundPermissionsAsync();
     if (permissions?.granted) {
@@ -57,6 +76,7 @@ const CustomActions = ({
     } else Alert.alert("Permissions haven't been granted.");
   };
 
+  /////////////// uploadAndSendImg ///////////////
   const uploadAndSendImg = async (imageURI) => {
     const response = await fetch(imageURI);
     const blob = await response.blob();
@@ -64,12 +84,13 @@ const CustomActions = ({
     const newUploadRef = ref(storage, uniqueRefString);
 
     uploadBytes(newUploadRef, blob).then(async (snapshot) => {
-      console.log('File has been uploaded successfully');
       const imageURL = await getDownloadURL(snapshot.ref);
       onSend({ image: imageURL });
     });
   };
 
+  /////////////// pickImage ///////////////
+  // user can pick an image on their image library to send
   const pickImage = async () => {
     let permissions = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -81,6 +102,8 @@ const CustomActions = ({
     }
   };
 
+  /////////////// takePhoto ///////////////
+  // user can user their camera to take and send a photo
   const takePhoto = async () => {
     let permissions = await ImagePicker.requestCameraPermissionsAsync();
     if (permissions?.granted) {
@@ -91,18 +114,85 @@ const CustomActions = ({
     }
   };
 
+  /////////////// generateReference ///////////////
+  // use userID, timeStamp, and image name to create a unique id to avoid duplicate naming when uploading to database
   const generateReference = (uri) => {
     const timeStamp = new Date().getTime();
     const imageName = uri.split('/')[uri.split('/').length - 1];
     return `${userID}-${timeStamp}-${imageName}`;
   };
 
+  /////////////// startRecording ///////////////
+  const startRecording = async () => {
+    try {
+      let permissions = await Audio.requestPermissionsAsync();
+      if (permissions?.granted) {
+        // iOS specific config to allow recording on iPhone devices
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true
+        });
+        Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
+          .then((results) => {
+            return results.recording;
+          })
+          .then((recording) => {
+            recordingObject = recording;
+            Alert.alert(
+              'You are recording...',
+              undefined,
+              [
+                {
+                  text: 'Cancel',
+                  onPress: () => {
+                    stopRecording();
+                  }
+                },
+                {
+                  text: 'Stop and Send',
+                  onPress: () => {
+                    sendRecordedSound();
+                  }
+                }
+              ],
+              { cancelable: false }
+            );
+          });
+      }
+    } catch (err) {
+      Alert.alert('Failed to record!');
+    }
+  };
+
+  /////////////// stopRecording ///////////////
+  const stopRecording = async () => {
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: false
+    });
+    await recordingObject.stopAndUnloadAsync();
+  };
+
+  /////////////// sendRecordedSound ///////////////
+  const sendRecordedSound = async () => {
+    await stopRecording();
+    const uniqueRefString = generateReference(recordingObject.getURI());
+    const newUploadRef = ref(storage, uniqueRefString);
+    const response = await fetch(recordingObject.getURI());
+    const blob = await response.blob();
+    uploadBytes(newUploadRef, blob).then(async (snapshot) => {
+      const soundURL = await getDownloadURL(snapshot.ref);
+      onSend({ audio: soundURL });
+    });
+  };
+
+  // Render Action Button
   return (
-    <TouchableNativeFeedback style={styles.container} onPress={onActionPress}>
+    <TouchableOpacity style={styles.container} onPress={onActionPress}>
       <View style={[styles.wrapper, wrapperStyle]}>
         <Text style={[styles.iconText, iconTextStyle]}>+</Text>
       </View>
-    </TouchableNativeFeedback>
+    </TouchableOpacity>
   );
 };
 
@@ -117,7 +207,8 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     borderColor: '#b2b2b2',
     borderWidth: 2,
-    flex: 1
+    flex: 1,
+    justifyContent: 'center'
   },
   iconText: {
     color: '#b2b2b2',
