@@ -18,6 +18,8 @@ const Start = ({ navigation }) => {
 
   const auth = getAuth();
 
+  /////////////// signInUser ///////////////
+  // Navigate to Chat component after user signs in anonymously
   const signInUser = () => {
     signInAnonymously(auth)
       .then((result) => {
