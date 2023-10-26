@@ -19,6 +19,7 @@ export default function App() {
   LogBox.ignoreLogs(['@firebase/auth: Auth (10.3.1)']);
   const connectionStatus = useNetInfo();
 
+  // Disable network and alert user when connection is lost
   useEffect(() => {
     if (connectionStatus.isConnected === false) {
       Alert.alert('Connection lost!');
@@ -38,9 +39,7 @@ export default function App() {
   };
 
   const app = initializeApp(firebaseConfig);
-
   const db = getFirestore(app);
-
   const storage = getStorage(app);
 
   return (
