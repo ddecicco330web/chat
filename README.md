@@ -1,6 +1,6 @@
 # chat
 
-This is a mobile app built with React Native that lets you chat with others.
+This is a mobile app built with React Native that lets you chat with others. The purpose of this project was to learn how to create an mobile app using React-Native and GiftedChat.
 
 ## Features
 
